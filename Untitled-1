@@ -1,0 +1,55 @@
+IF OBJECT_ID('PaGamePublic.uspRegPackingPathInfo') IS NOT NULL
+ BEGIN
+    DROP PROCEDURE PaGamePublic.uspRegPackingPathInfo
+ END
+GO
+CREATE PROCEDURE PaGamePublic.uspRegPackingPathInfo
+    @packInfoList            PaGamePublic.TblPackingPathInfo_Bulk     READONLY
+AS
+/*!  
+* brief  패킹 경로 정보 추가  
+*/  
+ BEGIN
+    SET NOCOUNT ON                  -- COUNT-set결과를생성하지말아라.
+    SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED
+    SET LOCK_TIMEOUT 3000           -- 함부로변경금지, 변경필요시DBA와협의.
+    SET XACT_ABORT ON
+
+    DECLARE @rv  INT = 0  
+
+    BEGIN TRAN uspRegPackingPathInfoTEST_tx1
+    /***************************************************************************
+    ** 작업시작(이하에만기술)
+    ***************************************************************************/
+
+
+    INSERT INTO TblPackingPathInfo(_ip,_pathName, _imageIdx)  
+    SELECT _ip,_pathName, _imageIdx  
+        FROM @packInfoList A
+            LEFT OUTER JOIN TblPackingPathInfo B
+            ON A._ip = B._ip AND A._pathName = B._pathName
+        WHERE B._ip IS NULL
+
+    IF (0 <> @@ERROR)
+     BEGIN
+        SET @rv = -1
+        GOTO LABEL_END
+     END
+
+    /***************************************************************************
+    ** 작업종료(이상에만기술)
+    ***************************************************************************/
+
+LABEL_END:
+    IF(0 = @rv)
+     BEGIN
+        COMMIT TRAN
+     END
+    ELSE
+     BEGIN
+        ROLLBACK TRAN
+     END
+
+    RETURN(@rv)
+ END
+GO
